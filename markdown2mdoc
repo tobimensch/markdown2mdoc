@@ -1,0 +1,151 @@
+#!/usr/bin/python
+
+import mistune
+import os
+import sys
+import re
+import datetime
+import subprocess
+import tempfile
+
+from docopt import docopt
+
+__all__ = ['markdown2mdoc']
+__version__ = '0.1.0'
+
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import HtmlFormatter
+
+class MD2MDocRenderer(mistune.Renderer):
+    def escape(self,string):
+        #replace dots at teh beginning of a line with \&.
+        string = re.sub("^\.",'\&.',string,re.MULTILINE)
+        return string
+
+    def block_code(self, code, lang):
+        if not lang:
+            return '\n.Bd -literal -offset ident\n%s\n.Ed\n' % \
+                self.escape(code)
+        lexer = get_lexer_by_name(lang, stripall=True)
+        formatter = HtmlFormatter()
+        return highlight(code, lexer, formatter)
+    def paragraph(self, text):
+        return '\n.Pp\n%s\n' % \
+                self.escape(text)
+        lexer = get_lexer_by_name(lang, stripall=True)
+        formatter = HtmlFormatter()
+        return highlight(code, lexer, formatter)
+
+    def header(self,text, level, raw=None):
+        return "\n\n.Sh "+text.upper()+"\n.Pp\n\&\n"
+
+    def list(self,body, ordered=True):
+        return "\n.Bl -bullet\n"+body+"\n.El\n"
+
+    def list_item(self,text):
+        return "\n.It\n"+text+"\n"+"\n"
+
+    def link(self,link, title, content):
+        if len(content) > 0:
+            return content+" "+str(link)+""
+        else:
+            return ""+str(link)+""
+
+    def autolink(self,link, is_email=False):
+        if is_email:
+            return "<"+str(link)+">"
+        else:
+            return ""+str(link)+""
+
+renderer = MD2MDocRenderer()
+md = mistune.Markdown(renderer=renderer)
+
+doc = '''
+usage: markdown2mdoc ( -i FILE | --stdin ) [-o FILE] [options]
+       markdown2mdoc --version
+
+Use the help message of a command to create a manpage.
+
+Options:
+  -h, --help                   show this help message and exit
+  -o FILE, --output FILE       write to file instead of stdout.
+                               when FILE is set to "auto" the    
+                               format is: command.section(.gz)
+  -i FILE, --input FILE        read CLI-help input from file    
+  --stdin                      read CLI-help input from stdin   
+  --no-document                when you render just a small part
+                               of a manpage you may not want
+                               the document start as part
+                               of the rendering
+  --name NAME                  name
+  --description TEXT           description
+  -s NUM, --section NUM        section number for manual page
+  --volume VOLUME              volume title for manual page
+  --os OS                      operating system
+  -m, --open-in-man            open the output in man
+  -v, --version                display version information
+
+'''
+
+
+opt = docopt(doc,None,True,__version__)
+
+inp = ''
+if opt['--input']:
+    inp = "".join(open(opt['--input']).readlines())
+elif opt['--stdin']:
+    inp = "".join(sys.stdin.readlines())
+else:
+    print "No input. Existing."
+    exit(0)
+
+
+rendered = md.render(inp)
+
+now = datetime.datetime.now()
+def mdoc_init_str():
+    global opt
+    s = ".Dd $Mdocdate: "+now.strftime("%B")+" "+now.strftime("%a")+" "+str(now.day)+" "+str(now.year)+" $\n"
+    s += ".Dt "
+    if opt["--name"]:
+        s+= opt["--name"].upper()
+    else:
+        s+= "NONAME"
+    s+=" "
+    if opt["--section"]:
+        s+=opt["--section"]
+    else:
+        s+="1"
+    if opt["--volume"]:
+        s+=" "+opt["--volume"]
+    s+="\n"
+    s + ".Os "
+    if opt["--os"]:
+        s+=opt["--os"]
+    else:
+        s+="UNIX"
+    s+="\n"
+    return s
+
+
+if opt['--output']:
+    f = open(opt['--output'],'w+')
+    f.write(mdoc_init_str())
+    f.write(rendered)
+    f.close()
+else:
+    print rendered
+
+
+if opt['--open-in-man']:
+    if not opt['--output']:
+        f = tempfile.NamedTemporaryFile(delete=False)
+        f.write(mdoc_init_str())
+        f.write(rendered)
+        f.close()
+        subprocess.call('man '+f.name,shell=True)
+        os.unlink(f.name)
+    else:
+        subprocess.call('man ./'+opt['--output'],shell=True)
+
