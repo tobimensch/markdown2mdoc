@@ -32,6 +32,7 @@ table(header, body)
 table_row(content)
 table_cell(content, **flags)
 ----- span level
+strikethrough(self, text):
 autolink(link, is_email=False)
 codespan(text)
 double_emphasis(text)
@@ -43,6 +44,10 @@ link(link, title, content)
 tag(html)
 strikethrough(text)
 text(text)
+
+footnote_ref(self, key, index):
+footnote_item(self, key, text):
+footnotes(self, text):
 '''
 class MD2MDocRenderer(mistune.Renderer):
     def escape(self,string):
@@ -76,10 +81,10 @@ class MD2MDocRenderer(mistune.Renderer):
         return "\n\n.Sh "+text.upper()+"\n.Pp\n\&\n"
 
     def double_emphasis(self,text): #FIXME: no difference to emphasis
-        return "\n.Nm "+text
+        return "\n.Bf -symbolic\n"+text+"\n.Ef\n"
 
     def emphasis(self,text):
-        return "\n.Nm "+text
+        return "\n.Bf -emphasis\n"+text+"\n.Ef\n"
 
     def linebreak(self):
         return '\n'
