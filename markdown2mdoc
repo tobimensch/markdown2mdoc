@@ -17,6 +17,33 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
 
+
+'''
+----- block level
+block_code(code, language=None)
+block_quote(text)
+block_html(html)
+header(text, level, raw=None)
+hrule()
+list(body, ordered=True)
+list_item(text)
+paragraph(text)
+table(header, body)
+table_row(content)
+table_cell(content, **flags)
+----- span level
+autolink(link, is_email=False)
+codespan(text)
+double_emphasis(text)
+emphasis(text)
+image(src, title, alt_text)
+linebreak()
+newline()
+link(link, title, content)
+tag(html)
+strikethrough(text)
+text(text)
+'''
 class MD2MDocRenderer(mistune.Renderer):
     def escape(self,string):
         #replace dots at teh beginning of a line with \&.
@@ -24,12 +51,17 @@ class MD2MDocRenderer(mistune.Renderer):
         return string
 
     def block_code(self, code, lang):
-        if not lang:
-            return '\n.Bd -literal -offset ident\n%s\n.Ed\n' % \
-                self.escape(code)
-        lexer = get_lexer_by_name(lang, stripall=True)
-        formatter = HtmlFormatter()
-        return highlight(code, lexer, formatter)
+        return '\n.Bd -literal -offset ident\n%s\n.Ed\n' % self.escape(code)
+       
+    def block_quote(self,text):
+        return self.block_code("``"+text+"``",None)
+
+    def block_html(self,html): #ignore it
+        return ""
+
+    def hrule(self):
+        return "\n--------------------------------\n"
+
     def paragraph(self, text):
         return '\n.Pp\n%s\n' % \
                 self.escape(text)
@@ -37,11 +69,26 @@ class MD2MDocRenderer(mistune.Renderer):
         formatter = HtmlFormatter()
         return highlight(code, lexer, formatter)
 
+    def codespan(self,text):
+        return block_code(self,text,None) #maybe not good?
+
     def header(self,text, level, raw=None):
         return "\n\n.Sh "+text.upper()+"\n.Pp\n\&\n"
 
+    def double_emphasis(self,text): #FIXME: no difference to emphasis
+        return "\n.Nm "+text
+
+    def emphasis(self,text):
+        return "\n.Nm "+text
+
+    def linebreak(self):
+        return '\n'
+
     def list(self,body, ordered=True):
-        return "\n.Bl -bullet\n"+body+"\n.El\n"
+        if ordered:
+            return "\n.Bl -enum\n"+body+"\n.El\n"
+        else:
+            return "\n.Bl -bullet\n"+body+"\n.El\n"
 
     def list_item(self,text):
         return "\n.It\n"+text+"\n"+"\n"
