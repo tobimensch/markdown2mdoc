@@ -70,9 +70,6 @@ class MD2MDocRenderer(mistune.Renderer):
     def paragraph(self, text):
         return '\n.Pp\n%s\n' % \
                 self.escape(text)
-        lexer = get_lexer_by_name(lang, stripall=True)
-        formatter = HtmlFormatter()
-        return highlight(code, lexer, formatter)
 
     def codespan(self,text):
         return block_code(self,text,None) #maybe not good?
@@ -85,6 +82,20 @@ class MD2MDocRenderer(mistune.Renderer):
 
     def emphasis(self,text):
         return "\n.Bf -emphasis\n"+text+"\n.Ef\n"
+
+    def strikethrough(self, text):
+        b = False
+        s = ''
+        for c in text:
+            b = not b
+            if c == ' ':
+                c = ''
+            if b:
+                s += c+'-'
+            else:
+                s += c+'-'
+        s = s[:-1]
+        return s
 
     def linebreak(self):
         return '\n'
